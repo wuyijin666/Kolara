@@ -79,7 +79,7 @@ func (s *Server) Serve() {
 
 }
 
-func NewServer(name string) kiface.Server {
+func NewServer(name string) kiface.IServer {
 	s := &Server{
 		Name: name,
 		IP: "0.0.0.0",

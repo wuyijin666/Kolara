@@ -11,6 +11,3 @@ func runServer() {
 	s.Serve()
 }
 
-func main() {
-	runServer()
-}

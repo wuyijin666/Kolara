@@ -3,7 +3,7 @@ package kiface
 import "net"
 
 // 定义连接模块抽象层
-type Connection interface {
+type IConnection interface {
 	Start()
 
 	Stop()

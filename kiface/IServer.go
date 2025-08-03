@@ -1,6 +1,6 @@
 package kiface
 
-type Server interface {
+type IServer interface {
 	Start()
 	Stop()
 	Serve()

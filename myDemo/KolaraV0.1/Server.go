@@ -10,3 +10,7 @@ func runServer() {
 	// 2. 启动服务器
 	s.Serve()
 }
+
+// func main(){
+// 	go runServer()
+// }
