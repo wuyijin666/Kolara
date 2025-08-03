@@ -4,6 +4,7 @@ import (
   "Kolara/kiface"
   "fmt"
   "net"
+  "errors"
 )
 
 
@@ -12,6 +13,17 @@ type Server struct {
    IP string
    IPVer string
    Port int
+}
+
+// 定义当前连接所绑定的handle api (目前该handle写死，之后用户可自定义handle)
+func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+     // 回显业务
+	 fmt.Println("[Conn handle] CallbackToClient is called ...")
+	 if _, err := conn.Write(data[:cnt]); err != nil {
+		fmt.Println("write back buf err: ", err)
+		return errors.New("CallbackToClient err")
+	}
+	return nil
 }
 
 func (s *Server) Start() { 
@@ -32,6 +44,8 @@ func (s *Server) Start() {
 		return
 	}
 
+	var cid uint32 = 0
+
 	// 3. 阻塞等待客户端连接，处理客户端连接业务(读写)
 	for {
 		// 如果客户端连接，阻塞会返回
@@ -41,24 +55,15 @@ func (s *Server) Start() {
 			continue
 		}
 
-		// 4. 启动一个goroutine处理连接 先做基础的业务，最大允许512字节的回显操作
-		go func() {
-			// 读取客户端的数据
-			for {
-				buf := make([]byte, 512)
-				cnt, err := conn.Read(buf)
-				if err != nil {
-					fmt.Println("read from conn err: ", err)
-					continue
-				}
+		// 将处理新连接的业务方法与 conn 进行绑定，得到我们的连接模块
+		dealConn := NewConnection(conn, cid, CallBackToClient)
+		cid ++
 
-				// 回显数据
-				if _, err := conn.Write(buf[:cnt]); err != nil {
-					fmt.Println("write to conn err: ", err)
-					continue
-				}
-			}
-		}()
+		// 启动当前连接的业务处理
+		go dealConn.Start()
+
+
+		
     }
 }()
 }
