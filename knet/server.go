@@ -4,7 +4,7 @@ import (
   "Kolara/kiface"
   "fmt"
   "net"
-  "errors"
+  
 )
 
 
@@ -13,18 +13,21 @@ type Server struct {
    IP string
    IPVer string
    Port int
+
+   // 给当前的Server添加一个router,server注册的连接对应的处理业务
+   Router kiface.IRouter
 }
 
-// 定义当前连接所绑定的handle api (目前该handle写死，之后用户可自定义handle)
-func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
-     // 回显业务
-	 fmt.Println("[Conn handle] CallbackToClient is called ...")
-	 if _, err := conn.Write(data[:cnt]); err != nil {
-		fmt.Println("write back buf err: ", err)
-		return errors.New("CallbackToClient err")
-	}
-	return nil
-}
+// // 定义当前连接所绑定的handle api (目前该handle写死，之后用户可自定义handle)
+// func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+//      // 回显业务
+// 	 fmt.Println("[Conn handle] CallbackToClient is called ...")
+// 	 if _, err := conn.Write(data[:cnt]); err != nil {
+// 		fmt.Println("write back buf err: ", err)
+// 		return errors.New("CallbackToClient err")
+// 	}
+// 	return nil
+// }
 
 func (s *Server) Start() { 
 
@@ -56,7 +59,7 @@ func (s *Server) Start() {
 		}
 
 		// 将处理新连接的业务方法与 conn 进行绑定，得到我们的连接模块
-		dealConn := NewConnection(conn, cid, CallBackToClient)
+		dealConn := NewConnection(conn, cid, s.Router)
 		cid ++
 
 		// 启动当前连接的业务处理
@@ -79,12 +82,17 @@ func (s *Server) Serve() {
 
 }
 
+func (s *Server) AddRouter(router kiface.IRouter) { 
+	s.Router = router
+}
+
 func NewServer(name string) kiface.IServer {
 	s := &Server{
 		Name: name,
 		IP: "0.0.0.0",
 		IPVer: "tcp4",
 		Port: 8999,
+		Router: nil,
 	}
 	return s
 }

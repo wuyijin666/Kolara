@@ -19,15 +19,18 @@ type Connection struct {
 
 	// 告知当前连接已经停止/退出的channel
 	ExitChan chan bool
+
+	// 该连接处理的方法Router
+	Router kiface.IRouter
 }
 
 // 初始化连接模块的方法
-func NewConnection(conn *net.TCPConn, connId uint32, call_back kiface.HandleFunc) *Connection {
+func NewConnection(conn *net.TCPConn, connId uint32, router kiface.IRouter) *Connection {
 	c := &Connection {
 		Conn : conn,
 		ConnID : connId,
 		isClosed : false,
-		handleAPI : call_back,
+		Router: router,
 		ExitChan : make(chan bool, 1),
 	}
 
@@ -42,18 +45,33 @@ func (c *Connection) StartReader() {
 	for{
 
 		buf := make([]byte, 4096)
-		cnt, err := c.Conn.Read(buf)
+		_, err := c.Conn.Read(buf)
 		if err != nil {
 			fmt.Println("read from conn err: ", err)
 			continue
 		}
 
-		// 调用当前连接绑定的handleAPI
-		if err := c.handleAPI(c.Conn, buf, cnt); err != nil {
-			fmt.Println("connID: " , c.ConnID, "handle is err: ", err)
-			break;
+		// // 调用当前连接绑定的handleAPI (后续被框架集成Router模块取代)
+		// if err := c.handleAPI(c.Conn, buf, cnt); err != nil {
+		// 	fmt.Println("connID: " , c.ConnID, "handle is err: ", err)
+		// 	break;
+		// }
+
+		// 得到当前conn的Request请求数据
+		req := Request {
+			conn : c,
+			data : buf,
 		}
 
+		// 从路由中，找到注册绑定的Conn对应的router调用
+		// 执行注册的路由方法
+		go func(request kiface.IRequest){
+			c.Router.PreHandle(request)
+			c.Router.Handle(request)
+			c.Router.PostHandle(request)
+
+		}(&req)
+		
 	}
 }
 
