@@ -6,7 +6,7 @@ import(
 	"time"
 )
 
-func main1() {
+func main() {
 	fmt.Println("client is starting...")
 	// 连接远程服务器
 	conn, err := net.Dial("tcp" , "127.0.0.1:8999")

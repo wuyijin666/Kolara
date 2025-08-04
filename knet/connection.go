@@ -4,6 +4,7 @@ import (
 	"Kolara/kiface"
 	"fmt"
 	"net"
+	"Kolara/utils"
 )
 
 // 定义连接属性
@@ -44,7 +45,7 @@ func (c *Connection) StartReader() {
 
 	for{
 
-		buf := make([]byte, 4096)
+		buf := make([]byte, utils.GlobalObject.MaxPackageSize)
 		_, err := c.Conn.Read(buf)
 		if err != nil {
 			fmt.Println("read from conn err: ", err)

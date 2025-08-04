@@ -4,6 +4,7 @@ import (
   "Kolara/kiface"
   "fmt"
   "net"
+  "Kolara/utils"
   
 )
 
@@ -30,6 +31,9 @@ type Server struct {
 // }
 
 func (s *Server) Start() { 
+	fmt.Printf("[Kolara] server name : %s is running at port %d ip %s\n", utils.GlobalObject.Name, utils.GlobalObject.TcpPort, utils.GlobalObject.Host)
+    fmt.Printf("[Kolara] server version : %s\n", utils.GlobalObject.Version)
+
 
 	go func(){
 
@@ -64,9 +68,6 @@ func (s *Server) Start() {
 
 		// 启动当前连接的业务处理
 		go dealConn.Start()
-
-
-		
     }
 }()
 }
@@ -88,10 +89,10 @@ func (s *Server) AddRouter(router kiface.IRouter) {
 
 func NewServer(name string) kiface.IServer {
 	s := &Server{
-		Name: name,
-		IP: "0.0.0.0",
+		Name: utils.GlobalObject.Name,
+		IP: utils.GlobalObject.Host,
 		IPVer: "tcp4",
-		Port: 8999,
+		Port: utils.GlobalObject.TcpPort,
 		Router: nil,
 	}
 	return s
