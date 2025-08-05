@@ -50,6 +50,6 @@ func runServer() {
 }
 
 
-// func main() {
-// 	runServer()
-// }
+func main() {
+	runServer()
+}
