@@ -4,7 +4,8 @@ import (
 	"Kolara/kiface"
 	"fmt"
 	"net"
-	"Kolara/utils"
+	"io"
+	"errors"
 )
 
 // 定义连接属性
@@ -45,12 +46,36 @@ func (c *Connection) StartReader() {
 
 	for{
 
-		buf := make([]byte, utils.GlobalObject.MaxPackageSize)
-		_, err := c.Conn.Read(buf)
-		if err != nil {
-			fmt.Println("read from conn err: ", err)
-			continue
+		// buf := make([]byte, utils.GlobalObject.MaxPackageSize)
+		// _, err := c.Conn.Read(buf)
+		// if err != nil {
+		// 	fmt.Println("read from conn err: ", err)
+		// 	continue
+		// }
+		// 创建一个拆包解包对象
+		dp := NewDataPack()
+		// 读取客户端的Msg Head, 二进制流， 8字节
+		headData := make([]byte, dp.GetHeaderLen())
+		if _, err := io.ReadFull(c.GetTCPConnection(), headData); err != nil {
+			fmt.Println("read head error", err)
+			break
 		}
+		// 拆包 得到msgId 和 msgDataLen, 放到msg中
+		msg, err := dp.Unpack(headData)
+		if err != nil {
+			fmt.Println("")
+			break
+		}
+		// 根据msgDataLen 读取Data
+		var data []byte
+		if msg.GetMsgLen() > 0 {
+			data = make([]byte, msg.GetMsgLen())
+			if _, err := io.ReadFull(c.GetTCPConnection(), data); err != nil {
+				fmt.Println("read data error", err)
+				break
+			}
+		}
+		msg.SetData(data)
 
 		// // 调用当前连接绑定的handleAPI (后续被框架集成Router模块取代)
 		// if err := c.handleAPI(c.Conn, buf, cnt); err != nil {
@@ -61,7 +86,7 @@ func (c *Connection) StartReader() {
 		// 得到当前conn的Request请求数据
 		req := Request {
 			conn : c,
-			data : buf,
+			msg : msg,
 		}
 
 		// 从路由中，找到注册绑定的Conn对应的router调用
@@ -85,10 +110,6 @@ func (c *Connection) Start() {
 
 	// 连接进行写业务
 	
-
-	
-
-
 }
 
 
@@ -115,7 +136,22 @@ func (c *Connection) RemoteAddr() net.Addr {
 }
 
 // 发送数据，将数据发送给远程的客户端
-func (c *Connection) Send(data []byte) error {
+func (c *Connection) SendMsg(msgId uint32, data []byte) error {
+	if c.isClosed {
+		return errors.New("conn is closed")
+	}
+	// 封包 msgId|msgLen|Data
+	dp := NewDataPack() 
+	binaryData, err := dp.Pack(NewMsgPackage(msgId, data))
+	if err != nil {
+		return errors.New("pack err ...")
+	}
+	// 将数据发送给客户端
+	_, err = c.Conn.Write(binaryData)
+	if err != nil {
+		fmt.Println("write msgId", msgId, "err",  err)
+		return errors.New("conn Write err...")
+	}
 	return nil
 
 }
