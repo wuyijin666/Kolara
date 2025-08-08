@@ -1,0 +1,7 @@
+{
+    "Name":"Kolara v0.7 demoServerApp",
+    "Host": "127.0.0.1",
+    "TcpPort": 7890,
+    "MaxConn": 300,
+    "Version": "V0.7"
+}
