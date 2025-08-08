@@ -15,8 +15,9 @@ type Server struct {
    IPVer string
    Port int
 
-   // 给当前的Server添加一个router,server注册的连接对应的处理业务
-   Router kiface.IRouter
+//    // 给当前的Server添加一个router,server注册的连接对应的处理业务
+//    Router kiface.IRouter
+   MsgHandle kiface.IMsgHandle
 }
 
 // // 定义当前连接所绑定的handle api (目前该handle写死，之后用户可自定义handle)
@@ -63,7 +64,7 @@ func (s *Server) Start() {
 		}
 
 		// 将处理新连接的业务方法与 conn 进行绑定，得到我们的连接模块
-		dealConn := NewConnection(conn, cid, s.Router)
+		dealConn := NewConnection(conn, cid, s.MsgHandle)
 		cid ++
 
 		// 启动当前连接的业务处理
@@ -83,9 +84,12 @@ func (s *Server) Serve() {
 
 }
 
-func (s *Server) AddRouter(router kiface.IRouter) { 
-	s.Router = router
+// 路由功能：给当前连接添加路由方法，供客户端连接处理使用
+func(s *Server) AddRouter(msgId uint32, router kiface.IRouter) {
+	s.MsgHandle.AddRouter(msgId, router)
+	fmt.Println("add router succ")
 }
+ 
 
 func NewServer(name string) kiface.IServer {
 	s := &Server{
@@ -93,7 +97,7 @@ func NewServer(name string) kiface.IServer {
 		IP: utils.GlobalObject.Host,
 		IPVer: "tcp4",
 		Port: utils.GlobalObject.TcpPort,
-		Router: nil,
+		MsgHandle: NewMsgHandle(),
 	}
 	return s
 }

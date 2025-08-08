@@ -23,19 +23,21 @@ type Connection struct {
 	ExitChan chan bool
 
 	// 该连接处理的方法Router
-	Router kiface.IRouter
+	// Router kiface.IRouter
+
+	// 消息管理：msgId和对应的处理业务api之间的关系
+	MsgHandle kiface.IMsgHandle
 }
 
 // 初始化连接模块的方法
-func NewConnection(conn *net.TCPConn, connId uint32, router kiface.IRouter) *Connection {
+func NewConnection(conn *net.TCPConn, connId uint32, msgHandle kiface.IMsgHandle) *Connection {
 	c := &Connection {
 		Conn : conn,
 		ConnID : connId,
 		isClosed : false,
-		Router: router,
+		MsgHandle: msgHandle,
 		ExitChan : make(chan bool, 1),
 	}
-
 	return c
 }
 
@@ -91,12 +93,15 @@ func (c *Connection) StartReader() {
 
 		// 从路由中，找到注册绑定的Conn对应的router调用
 		// 执行注册的路由方法
-		go func(request kiface.IRequest){
-			c.Router.PreHandle(request)
-			c.Router.Handle(request)
-			c.Router.PostHandle(request)
+		// go func(request kiface.IRequest){
+		// 	c.Router.PreHandle(request)
+		// 	c.Router.Handle(request)
+		// 	c.Router.PostHandle(request)
 
-		}(&req)
+		// }(&req)
+		
+		// 根据msgId调用对应的router业务
+		go c.MsgHandle.DoMsgHandle(&req)
 		
 	}
 }

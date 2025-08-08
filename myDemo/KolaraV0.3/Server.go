@@ -43,7 +43,7 @@ func runServer() {
 	s := knet.NewServer("Kolara V0.3")
 
 	// 2. 给当前框架 添加一个自定义的router
-	s.AddRouter(&PingRouter{})
+	//s.AddRouter(&PingRouter{})
 
 	// 3. 启动服务器
 	s.Serve()
