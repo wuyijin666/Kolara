@@ -39,11 +39,27 @@ func (h *HelloKolaraRouter) Handle(request kiface.IRequest) {
 	}
 }
 
+func DoConnBeginHook(conn kiface.IConnection){
+	fmt.Println("DoConnBeginHook is called ...")
+	if err := conn.SendMsg(202, []byte("DOCONN BEGIN...")); err != nil {
+		fmt.Println(err)
+	}
+
+}
+
+func DoConnStopHook(conn kiface.IConnection){
+	fmt.Println("DoConnStopHook is called ...")
+}
+
 
 
 func runServer() {
 	// 1. 创建一个server句柄，利用Kolara框架的api
-	s := knet.NewServer("Kolara V0.8")
+	s := knet.NewServer("Kolara V0.9")
+
+	// 注册hook函数 实现用户方的一些自定义逻辑
+	s.SetOnConnStart(DoConnBeginHook)
+	s.SetOnConnStop(DoConnStopHook)
 
 	// 2. 给当前框架添加自定义的router
 	s.AddRouter(0, &PingRouter{})

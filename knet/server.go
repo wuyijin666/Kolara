@@ -18,6 +18,11 @@ type Server struct {
 
    MsgHandle kiface.IMsgHandle
    ConnMgr kiface.IConnManager
+   // 该Server创建连接之后自动调用hook函数
+   OnConnStart func (conn kiface.IConnection)
+   // 该Server销毁连接之前自动调用hook函数
+   OnConnStop func (conn kiface.IConnection)
+
 }
 
 func NewServer(name string) kiface.IServer {
@@ -116,3 +121,25 @@ func(s *Server) AddRouter(msgId uint32, router kiface.IRouter) {
 func(s *Server) GetConnMgr() kiface.IConnManager {
 	return s.ConnMgr
 }
+
+func (s *Server) SetOnConnStart(hookFunc func(conn kiface.IConnection)) {
+	s.OnConnStart = hookFunc
+}
+
+func(s *Server) SetOnConnStop(hookFunc func(conn kiface.IConnection)){
+	s.OnConnStop = hookFunc
+}
+
+func(s *Server) CallOnConnStart(conn kiface.IConnection){
+	if s.OnConnStart != nil {
+		s.OnConnStart(conn)
+	}
+}
+
+func(s *Server) CallOnConnStop(conn kiface.IConnection){
+	if s.OnConnStop != nil {
+		s.OnConnStop(conn)
+	}
+}
+
+

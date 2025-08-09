@@ -148,6 +148,8 @@ func (c *Connection) Start() {
 	go c.StartReader()
 	// 启动当前连接进行写业务
     go c.StartWriter()	
+
+	c.TcpServer.CallOnConnStart(c)
 }
 
 
@@ -158,6 +160,8 @@ func (c *Connection) Stop() {
 		return
 	} 
 	c.isClosed = true
+
+	c.TcpServer.CallOnConnStop(c)
 
 	// 关闭socket连接
 	c.Conn.Close()
