@@ -25,11 +25,10 @@ import (
 	*/
 	Version string           // 当前Kolara框架的版本号
 	MaxPackageSize uint32    // 当前框架允许的最大数据包大小
+	WorkPoolSize uint32      // 当前业务Worker池中的goroutine的数量
+	MaxWorkerTaskLen uint32  // 框架允许客户端最多开多少个worker
+
 }
-
-
-
-
 // 先从conf/kolara.json中加载数据 若无，则选择默认数据
 func (g *GlobalObj) Reload() {
 	data, err := os.ReadFile("conf/kolara.json")
@@ -54,6 +53,8 @@ func init() {
 		MaxConn : 1000,
 		Version : "V0.3",
 		MaxPackageSize : 4096,
+		WorkPoolSize : 10,
+		MaxWorkerTaskLen : 1024,
 	}
 
 	GlobalObject.Reload()

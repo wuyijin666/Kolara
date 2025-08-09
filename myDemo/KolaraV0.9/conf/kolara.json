@@ -1,0 +1,8 @@
+{
+    "Name":"Kolara v0.9 demoServerApp",
+    "Host": "127.0.0.1",
+    "TcpPort": 7890,
+    "MaxConn": 2,
+    "Version": "V0.9",
+    "WorkerPoolSize": 2
+}

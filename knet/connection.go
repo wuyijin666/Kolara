@@ -6,10 +6,12 @@ import (
 	"net"
 	"io"
 	"errors"
+	"Kolara/utils"
 )
 
 // 定义连接属性
 type Connection struct {
+	TcpServer kiface.IServer
 	// 当前连接的TCP套接字
 	Conn *net.TCPConn
 	// 连接ID
@@ -19,8 +21,11 @@ type Connection struct {
 	// 当前连接所绑定的处理业务api
 	handleAPI kiface.HandleFunc
 
-	// 告知当前连接已经停止/退出的channel
+	// 告知当前连接已经停止/退出的channel (由Reader告知Writer该退出信号)
 	ExitChan chan bool
+
+	// 无缓冲管道， 用于读写Goroutine之间的消息通信
+	MsgChan chan []byte
 
 	// 该连接处理的方法Router
 	// Router kiface.IRouter
@@ -30,24 +35,28 @@ type Connection struct {
 }
 
 // 初始化连接模块的方法
-func NewConnection(conn *net.TCPConn, connId uint32, msgHandle kiface.IMsgHandle) *Connection {
+func NewConnection(server kiface.IServer, conn *net.TCPConn, connId uint32, msgHandle kiface.IMsgHandle) *Connection {
 	c := &Connection {
+		TcpServer: server,
 		Conn : conn,
 		ConnID : connId,
 		isClosed : false,
-		MsgHandle: msgHandle,
 		ExitChan : make(chan bool, 1),
+		MsgChan : make(chan []byte),
+		MsgHandle: msgHandle,
 	}
+
+	// 将conn加入到ConnMgr中
+	c.TcpServer.GetConnMgr().Add(c)
 	return c
 }
 
 func (c *Connection) StartReader() {
-	fmt.Println("Reader Goroutine is starting ... ")
-	defer fmt.Println("Conn is closing ... ConnId = ", c.ConnID, "RemoteAddr = " , c.RemoteAddr().String())
+	fmt.Println("[Reader Goroutine is starting]")
+	defer fmt.Println("Conn Reader close, ConnId = ", c.ConnID, "RemoteAddr = " , c.RemoteAddr().String())
 	defer c.Stop()
 
 	for{
-
 		// buf := make([]byte, utils.GlobalObject.MaxPackageSize)
 		// _, err := c.Conn.Read(buf)
 		// if err != nil {
@@ -65,7 +74,7 @@ func (c *Connection) StartReader() {
 		// 拆包 得到msgId 和 msgDataLen, 放到msg中
 		msg, err := dp.Unpack(headData)
 		if err != nil {
-			fmt.Println("")
+			fmt.Println("unpack error", err)
 			break
 		}
 		// 根据msgDataLen 读取Data
@@ -100,9 +109,34 @@ func (c *Connection) StartReader() {
 
 		// }(&req)
 		
-		// 根据msgId调用对应的router业务
-		go c.MsgHandle.DoMsgHandle(&req)
-		
+		if utils.GlobalObject.WorkPoolSize > 0 {
+			// 已开启worker工作池
+			c.MsgHandle.SendMsgToTaskQueue(&req)
+		}else {
+			// 根据msgId调用对应的router业务
+		    go c.MsgHandle.DoMsgHandle(&req)
+		}	
+	}
+}
+
+// 写Goroutine 专门发送给客户端消息的模块
+func (c *Connection) StartWriter() {
+	fmt.Println("[Writer Goroutine is starting]")
+	defer fmt.Println(c.RemoteAddr().String(), "conn Writer exit now.")
+
+	// 不断的阻塞等待channel的消息， 进行写给客户端
+	for {
+		select {
+		case data := <- c.MsgChan:
+			// 有数据要写给客户端
+			if _, err := c.Conn.Write(data); err != nil {
+				fmt.Println("Send data error:, ", err)
+				return 
+			}
+		case <- c.ExitChan:
+			// 代表Reader已退出，则Writer也退出。conn已经关闭
+			return
+		}
 	}
 }
 
@@ -112,13 +146,31 @@ func (c *Connection) Start() {
 	fmt.Println("conn Start() ... ConnId = " , c.ConnID)
 	// 连接进行读业务
 	go c.StartReader()
-
-	// 连接进行写业务
-	
+	// 启动当前连接进行写业务
+    go c.StartWriter()	
 }
 
 
 func (c *Connection) Stop() {
+	fmt.Println("Conn Stop()... ConnId = ", c.ConnID)
+	// 若当前连接已关闭
+    if c.isClosed == true {
+		return
+	} 
+	c.isClosed = true
+
+	// 关闭socket连接
+	c.Conn.Close()
+
+	// 告知Writer关闭
+	c.ExitChan <- true
+
+	// 释放连接资源
+	c.TcpServer.GetConnMgr().Remove(c)
+
+	// 回收资源
+	close(c.ExitChan)
+	close(c.MsgChan)
 
 }
 
@@ -152,11 +204,13 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 		return errors.New("pack err ...")
 	}
 	// 将数据发送给客户端
-	_, err = c.Conn.Write(binaryData)
-	if err != nil {
-		fmt.Println("write msgId", msgId, "err",  err)
-		return errors.New("conn Write err...")
-	}
-	return nil
+	// _, err = c.Conn.Write(binaryData)
+	// if err != nil {
+	// 	fmt.Println("write msgId", msgId, "err",  err)
+	// 	return errors.New("conn Write err...")
+	// }
 
+	// 将封包的消息发送给管道
+	c.MsgChan <- binaryData
+	return nil
 }

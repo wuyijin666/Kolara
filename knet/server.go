@@ -7,20 +7,33 @@ import (
   "Kolara/utils"
   
 )
+type Server struct {
+   Name   string
+   IP     string
+   IPVer  string
+   Port   int
 
+   // 给当前的Server添加一个router,server注册的连接对应的处理业务
+   // Router kiface.IRouter
 
-type Server struct { 
-   Name string
-   IP string
-   IPVer string
-   Port int
-
-//    // 给当前的Server添加一个router,server注册的连接对应的处理业务
-//    Router kiface.IRouter
    MsgHandle kiface.IMsgHandle
+   ConnMgr kiface.IConnManager
 }
 
-// // 定义当前连接所绑定的handle api (目前该handle写死，之后用户可自定义handle)
+func NewServer(name string) kiface.IServer {
+	s := &Server{
+		Name: utils.GlobalObject.Name,
+		IP: utils.GlobalObject.Host,
+		IPVer: "tcp4",
+		Port: utils.GlobalObject.TcpPort,
+		MsgHandle: NewMsgHandle(),
+		ConnMgr: NewConnManager(),
+	}
+	return s
+}
+
+
+// 定义当前连接所绑定的handle api (目前该handle写死，之后用户可自定义handle)
 // func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
 //      // 回显业务
 // 	 fmt.Println("[Conn handle] CallbackToClient is called ...")
@@ -38,13 +51,13 @@ func (s *Server) Start() {
 
 	go func(){
 
+	s.MsgHandle.StartWorkerPool()
 	// 1. 获取一个TCP的Addr
 	addr, err := net.ResolveTCPAddr(s.IPVer, fmt.Sprintf("%s:%d", s.IP, s.Port))
 	if err != nil {
 		fmt.Println("resolve tcp addr err: ", err)
 		return
 	}
-
 	// 2. 监听服务器地址
 	listener, err := net.ListenTCP(s.IPVer, addr)
 	if err != nil {
@@ -63,8 +76,15 @@ func (s *Server) Start() {
 			continue
 		}
 
+		if s.ConnMgr.Len() > utils.GlobalObject.MaxConn {
+			// TODO 给客户端一个超过最大连接数的错误包
+			fmt.Println("----> too many connections MaxConn:" , utils.GlobalObject.MaxConn)
+			conn.Close()
+			continue
+		}
+
 		// 将处理新连接的业务方法与 conn 进行绑定，得到我们的连接模块
-		dealConn := NewConnection(conn, cid, s.MsgHandle)
+		dealConn := NewConnection(s, conn, cid, s.MsgHandle)
 		cid ++
 
 		// 启动当前连接的业务处理
@@ -73,10 +93,13 @@ func (s *Server) Start() {
 }()
 }
 
+// 停止服务器
 func (s *Server) Stop() { 
+	s.ConnMgr.ClearConn()
 
 }
 
+// 运行服务器
 func (s *Server) Serve() { 
 	s.Start()
 
@@ -89,15 +112,7 @@ func(s *Server) AddRouter(msgId uint32, router kiface.IRouter) {
 	s.MsgHandle.AddRouter(msgId, router)
 	fmt.Println("add router succ")
 }
- 
 
-func NewServer(name string) kiface.IServer {
-	s := &Server{
-		Name: utils.GlobalObject.Name,
-		IP: utils.GlobalObject.Host,
-		IPVer: "tcp4",
-		Port: utils.GlobalObject.TcpPort,
-		MsgHandle: NewMsgHandle(),
-	}
-	return s
+func(s *Server) GetConnMgr() kiface.IConnManager {
+	return s.ConnMgr
 }

@@ -17,8 +17,6 @@ type HelloKolaraRouter struct {
 	knet.BaseRouter
 }
 
-
-
 func (p *PingRouter) Handle(request kiface.IRequest) {
 	fmt.Println("Call PingRouter Handle")
 	// 先读取客户端数据 再回写ping ping ping
@@ -35,7 +33,7 @@ func (h *HelloKolaraRouter) Handle(request kiface.IRequest) {
 	// 先读取客户端数据 再回写ping ping ping
 	fmt.Println("recv from client msgId:", request.GetMsgId(), "data:", string(request.GetData()))
 
-	err := request.GetConnection().SendMsg(201, []byte("Hello welcome to KolaraV0.6!\n"))
+	err := request.GetConnection().SendMsg(201, []byte("Hello welcome to KolaraV0.8!\n"))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -45,7 +43,7 @@ func (h *HelloKolaraRouter) Handle(request kiface.IRequest) {
 
 func runServer() {
 	// 1. 创建一个server句柄，利用Kolara框架的api
-	s := knet.NewServer("Kolara V0.6")
+	s := knet.NewServer("Kolara V0.8")
 
 	// 2. 给当前框架添加自定义的router
 	s.AddRouter(0, &PingRouter{})
