@@ -7,6 +7,7 @@ import (
 	"io"
 	"errors"
 	"Kolara/utils"
+	"sync"
 )
 
 // 定义连接属性
@@ -32,6 +33,11 @@ type Connection struct {
 
 	// 消息管理：msgId和对应的处理业务api之间的关系
 	MsgHandle kiface.IMsgHandle
+
+	// 连接属性集合
+	Property map[string]interface{}
+    // 保护连接属性的锁
+	PropertyLock sync.RWMutex
 }
 
 // 初始化连接模块的方法
@@ -44,6 +50,7 @@ func NewConnection(server kiface.IServer, conn *net.TCPConn, connId uint32, msgH
 		ExitChan : make(chan bool, 1),
 		MsgChan : make(chan []byte),
 		MsgHandle: msgHandle,
+		Property: make(map[string]interface{}),
 	}
 
 	// 将conn加入到ConnMgr中
@@ -217,4 +224,28 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 	// 将封包的消息发送给管道
 	c.MsgChan <- binaryData
 	return nil
+}
+
+func(c *Connection) AddProperty(key string, value interface{}){
+	c.PropertyLock.Lock()
+	defer c.PropertyLock.Unlock()
+	
+	c.Property[key] = value
+}
+
+func(c *Connection) GetProperty(key string) (interface{}, error) {
+	c.PropertyLock.Lock()
+	defer c.PropertyLock.Unlock()
+
+	if value, ok := c.Property[key]; ok {
+		return value, nil
+	}
+	return nil, errors.New("property not found")	
+}
+
+func(c *Connection) RemoveProperty(key string) {
+	c.PropertyLock.Lock()
+	defer c.PropertyLock.Unlock()
+
+	delete(c.Property, key)
 }

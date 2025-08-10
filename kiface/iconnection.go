@@ -20,6 +20,10 @@ type IConnection interface {
 	// 发送数据，将数据发送给远程的客户端
 	SendMsg(msgId uint32, data []byte) error
 
+	AddProperty(key string, value interface{})
+	GetProperty(key string) (interface{}, error) 
+	RemoveProperty(key string) 
+
 }
 
 // 连接绑定的处理函数的业务类型
